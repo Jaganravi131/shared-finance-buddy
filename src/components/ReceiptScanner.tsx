@@ -27,7 +27,7 @@ const ReceiptScanner: React.FC = () => {
   const [scanResult, setScanResult] = useState<OCRResult | null>(null);
   
   const navigate = useNavigate();
-  const { addExpense, currentGroup } = useExpenseContext();
+  const { addExpense, currentGroup, currentUser } = useExpenseContext();
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,7 +42,7 @@ const ReceiptScanner: React.FC = () => {
     }
   };
   
-  // Simulate OCR scanning functionality
+  // Real OCR scanning functionality - currently simulated
   const scanReceipt = async () => {
     if (!image) {
       toast.error("Please select an image to scan");
@@ -52,19 +52,34 @@ const ReceiptScanner: React.FC = () => {
     setLoading(true);
     
     try {
-      // This is a placeholder for real OCR API integration
-      // In a real app, you would:
-      // 1. Upload the image to your server or directly to OCR service
-      // 2. Call an OCR API (Google Vision, etc.)
-      // 3. Process the response
+      // This is where you would integrate a real OCR API
+      // Replace this with actual API call when ready
+      // Example with Google Vision API (placeholder code):
+      /*
+      const formData = new FormData();
+      formData.append('image', image);
       
-      // Simulate API delay
+      const response = await fetch('https://vision.googleapis.com/v1/images:annotate?key=YOUR_API_KEY', {
+        method: 'POST',
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64EncodedImage },
+            features: [{ type: 'TEXT_DETECTION' }]
+          }]
+        })
+      });
+      const data = await response.json();
+      // Process OCR response
+      */
+      
+      // Simulate API delay for now
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Simulate OCR results
+      // Create realistic result based on current date and random values
+      const today = new Date();
       const simulatedResult: OCRResult = {
         merchant: "Local Grocery Store",
-        date: new Date().toISOString().split('T')[0],
+        date: today.toISOString().split('T')[0],
         total: (Math.random() * 100 + 10).toFixed(2),
         items: [
           { name: "Milk", price: 3.99 },
@@ -84,20 +99,35 @@ const ReceiptScanner: React.FC = () => {
   };
   
   const createExpenseFromReceipt = () => {
-    if (!scanResult) return;
+    if (!scanResult || !currentUser) return;
+    
+    // Create equal splits for all members
+    const totalAmount = parseFloat(scanResult.total);
+    const memberCount = currentGroup?.members.length || 1;
+    const equalShare = totalAmount / memberCount;
+    
+    const splits = currentGroup?.members.map(member => ({
+      userId: member.id,
+      amount: parseFloat(equalShare.toFixed(2)),
+      isPaid: member.id === currentUser.id // The person who paid has already paid their share
+    })) || [];
     
     // Create a new expense from the scan result
     const expense = {
       title: `Receipt from ${scanResult.merchant}`,
-      amount: parseFloat(scanResult.total),
+      amount: totalAmount,
       date: new Date(),
-      paidBy: "", // Will be set to current user's ID
+      paidBy: currentUser.id,
       category: "Food", // Default category, can be changed in the expense form
       groupId: currentGroup?.id || "",
-      splits: [] // Will be populated in the expense form
+      splits: splits
     };
     
-    // Navigate to expense form with prefilled data
+    // Add the expense directly and navigate back to dashboard
+    addExpense(expense);
+    toast.success(`Expense of $${totalAmount.toFixed(2)} added and split among ${memberCount} members`);
+    
+    // Navigate to expense form with prefilled data for further editing
     navigate("/add-expense", { 
       state: { 
         prefillData: expense,
@@ -107,15 +137,8 @@ const ReceiptScanner: React.FC = () => {
   };
   
   const takePhoto = () => {
-    // Placeholder for camera functionality
+    // This would use the device camera in a real implementation
     toast.info("📸 Camera access would be requested here");
-    
-    // In a real app, you would:
-    // 1. Request camera access
-    // 2. Open a camera interface
-    // 3. Capture and process the image
-    
-    // For now, we'll just simulate it with the file input
     document.getElementById("receipt-upload")?.click();
   };
 

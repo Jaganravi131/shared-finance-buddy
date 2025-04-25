@@ -9,6 +9,8 @@ import { useExpenseContext } from "@/context/ExpenseContext";
 import { ArrowDown } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import PayPalIntegration from "./PayPalIntegration";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const SettleUp: React.FC = () => {
   const { balances, users, currentUser, currentGroup, settleUp } = useExpenseContext();
@@ -16,6 +18,7 @@ const SettleUp: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [showPayPalDialog, setShowPayPalDialog] = useState<boolean>(false);
 
   // Filter to only show users that the current user owes money to
   const usersToPay = users.filter(user => {
@@ -60,14 +63,27 @@ const SettleUp: React.FC = () => {
       toast.error("Amount must be greater than 0");
       return;
     }
-    
-    // Call the settleUp function from context
-    settleUp(
-      currentUser?.id || "", 
-      selectedUserId, 
-      parseFloat(amount)
-    );
-    
+
+    if (paymentMethod === "paypal") {
+      setShowPayPalDialog(true);
+    } else {
+      // For other payment methods, process directly
+      settleUp(
+        currentUser?.id || "", 
+        selectedUserId, 
+        parseFloat(amount)
+      );
+      
+      toast.success(`Payment of $${amount} marked as complete via ${paymentMethod}`);
+      
+      // Reset form
+      setSelectedUserId("");
+      setAmount("");
+    }
+  };
+
+  const handlePayPalSuccess = () => {
+    setShowPayPalDialog(false);
     // Reset form
     setSelectedUserId("");
     setAmount("");
@@ -135,8 +151,8 @@ const SettleUp: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="venmo">Venmo</SelectItem>
                   <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="venmo">Venmo</SelectItem>
                   <SelectItem value="bank">Bank Transfer</SelectItem>
                 </SelectContent>
               </Select>
@@ -169,6 +185,19 @@ const SettleUp: React.FC = () => {
           Complete Payment
         </Button>
       </CardFooter>
+
+      {/* PayPal Integration Dialog */}
+      <Dialog open={showPayPalDialog} onOpenChange={setShowPayPalDialog}>
+        <DialogContent>
+          <DialogTitle>Complete Payment with PayPal</DialogTitle>
+          <PayPalIntegration 
+            amount={parseFloat(amount)} 
+            toUserId={selectedUserId}
+            onSuccess={handlePayPalSuccess}
+            onCancel={() => setShowPayPalDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
