@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { CurrencyCode } from "@/utils/currencyConverter";
 
 // Define types for our data models
 export type ExpenseSplit = {
@@ -26,11 +27,18 @@ export type Group = {
   members: User[];
 };
 
+export type UserPreferences = {
+  notificationsEnabled: boolean;
+  paymentReminders: boolean;
+  theme: 'light' | 'dark' | 'system';
+};
+
 export type User = {
   id: string;
   name: string;
   email: string;
   avatar?: string;
+  preferences: UserPreferences;
 };
 
 export type Balance = {
@@ -45,14 +53,18 @@ type ExpenseContextType = {
   balances: Record<string, number>;
   currentUser: User | null;
   currentGroup: Group | null;
+  preferredCurrency: CurrencyCode;
   setCurrentGroup: (group: Group) => void;
   addExpense: (expense: Omit<Expense, "id">) => void;
   deleteExpense: (id: string) => void;
   addGroup: (group: Omit<Group, "id">) => void;
+  addMemberToGroup: (groupId: string, user: User) => void;
   calculateBalances: () => Record<string, number>;
   addUser: (user: Omit<User, "id">) => void;
+  updateUser: (user: User) => void;
   settleUp: (fromUserId: string, toUserId: string, amount: number) => void;
   markExpenseAsPaid: (expenseId: string, userId: string) => void;
+  setPreferredCurrency: (currency: CurrencyCode) => void;
   loading: boolean;
 };
 
@@ -63,24 +75,44 @@ const mockUsers: User[] = [
     name: "You",
     email: "you@example.com",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+    preferences: {
+      notificationsEnabled: true,
+      paymentReminders: true,
+      theme: 'system'
+    }
   },
   {
     id: "u2",
     name: "Alex",
     email: "alex@example.com",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex",
+    preferences: {
+      notificationsEnabled: true,
+      paymentReminders: true,
+      theme: 'system'
+    }
   },
   {
     id: "u3",
     name: "Taylor",
     email: "taylor@example.com",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Taylor",
+    preferences: {
+      notificationsEnabled: true,
+      paymentReminders: false,
+      theme: 'system'
+    }
   },
   {
     id: "u4",
     name: "Jordan",
     email: "jordan@example.com",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jordan",
+    preferences: {
+      notificationsEnabled: false,
+      paymentReminders: true,
+      theme: 'dark'
+    }
   },
 ];
 
@@ -172,6 +204,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [currentGroup, setCurrentGroup] = useState<Group | null>(null);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(true);
+  const [preferredCurrency, setPreferredCurrency] = useState<CurrencyCode>('USD');
 
   // Load data from local storage on initial render
   useEffect(() => {
@@ -261,13 +294,46 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     toast.success(`Group "${newGroup.name}" created successfully`);
   };
 
+  const addMemberToGroup = (groupId: string, user: User) => {
+    setGroups(prev => prev.map(group => {
+      if (group.id === groupId) {
+        // Check if user is already in the group
+        if (group.members.some(member => member.id === user.id)) {
+          return group;
+        }
+        return {
+          ...group,
+          members: [...group.members, user]
+        };
+      }
+      return group;
+    }));
+    
+    toast.success(`${user.name} added to group`);
+  };
+
   const addUser = (user: Omit<User, "id">) => {
     const newUser = {
       ...user,
       id: `u${Date.now().toString()}`,
+      preferences: {
+        notificationsEnabled: true,
+        paymentReminders: true,
+        theme: 'system'
+      }
     };
     setUsers(prev => [...prev, newUser]);
     toast.success(`User "${newUser.name}" added successfully`);
+  };
+  
+  const updateUser = (updatedUser: User) => {
+    setUsers(prev => prev.map(user => 
+      user.id === updatedUser.id ? updatedUser : user
+    ));
+    
+    if (currentUser && currentUser.id === updatedUser.id) {
+      setCurrentUser(updatedUser);
+    }
   };
 
   const calculateBalances = () => {
@@ -334,14 +400,18 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     balances,
     currentUser,
     currentGroup,
+    preferredCurrency,
     setCurrentGroup,
     addExpense,
     deleteExpense,
     addGroup,
+    addMemberToGroup,
     addUser,
+    updateUser,
     calculateBalances,
     markExpenseAsPaid,
     settleUp,
+    setPreferredCurrency,
     loading
   };
 
