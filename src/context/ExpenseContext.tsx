@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { toast } from "sonner";
 
 // Define types for our data models
 export type ExpenseSplit = {
@@ -49,6 +50,10 @@ type ExpenseContextType = {
   deleteExpense: (id: string) => void;
   addGroup: (group: Omit<Group, "id">) => void;
   calculateBalances: () => Record<string, number>;
+  addUser: (user: Omit<User, "id">) => void;
+  settleUp: (fromUserId: string, toUserId: string, amount: number) => void;
+  markExpenseAsPaid: (expenseId: string, userId: string) => void;
+  loading: boolean;
 };
 
 // Create initial mock data
@@ -154,15 +159,78 @@ const mockExpenses: Expense[] = [
   },
 ];
 
+// Create a local storage key for the app
+const STORAGE_KEY = 'expenseease_data';
+
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
 export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
-  const [groups, setGroups] = useState<Group[]>(mockGroups);
-  const [users] = useState<User[]>(mockUsers);
-  const [currentUser] = useState<User>(mockUsers[0]); // Default to the first user as "You"
-  const [currentGroup, setCurrentGroup] = useState<Group>(mockGroups[0]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentGroup, setCurrentGroup] = useState<Group | null>(null);
   const [balances, setBalances] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Load data from local storage on initial render
+  useEffect(() => {
+    const loadData = () => {
+      try {
+        setLoading(true);
+        const storedData = localStorage.getItem(STORAGE_KEY);
+        
+        if (storedData) {
+          const parsedData = JSON.parse(storedData);
+          
+          // Convert string dates back to Date objects
+          const processedExpenses = parsedData.expenses.map((expense: any) => ({
+            ...expense,
+            date: new Date(expense.date),
+          }));
+          
+          setExpenses(processedExpenses);
+          setGroups(parsedData.groups);
+          setUsers(parsedData.users);
+          setCurrentUser(parsedData.users[0]); // Default to the first user as "You"
+          setCurrentGroup(parsedData.groups[0]);
+        } else {
+          // Use mock data for first-time users
+          setExpenses(mockExpenses);
+          setGroups(mockGroups);
+          setUsers(mockUsers);
+          setCurrentUser(mockUsers[0]);
+          setCurrentGroup(mockGroups[0]);
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Failed to load data. Using default data instead.");
+        
+        // Fallback to mock data
+        setExpenses(mockExpenses);
+        setGroups(mockGroups);
+        setUsers(mockUsers);
+        setCurrentUser(mockUsers[0]);
+        setCurrentGroup(mockGroups[0]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+
+  // Save data to local storage whenever expenses, groups, or users change
+  useEffect(() => {
+    if (!loading) {
+      const dataToSave = {
+        expenses,
+        groups,
+        users
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    }
+  }, [expenses, groups, users, loading]);
 
   // Calculate balances whenever expenses change
   useEffect(() => {
@@ -174,11 +242,13 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...expense,
       id: `e${Date.now().toString()}`,
     };
-    setExpenses([...expenses, newExpense]);
+    setExpenses(prev => [...prev, newExpense]);
+    toast.success("Expense added successfully");
   };
 
   const deleteExpense = (id: string) => {
-    setExpenses(expenses.filter((expense) => expense.id !== id));
+    setExpenses(prev => prev.filter((expense) => expense.id !== id));
+    toast.success("Expense deleted successfully");
   };
 
   const addGroup = (group: Omit<Group, "id">) => {
@@ -186,8 +256,18 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...group,
       id: `g${Date.now().toString()}`,
     };
-    setGroups([...groups, newGroup]);
+    setGroups(prev => [...prev, newGroup]);
     setCurrentGroup(newGroup);
+    toast.success(`Group "${newGroup.name}" created successfully`);
+  };
+
+  const addUser = (user: Omit<User, "id">) => {
+    const newUser = {
+      ...user,
+      id: `u${Date.now().toString()}`,
+    };
+    setUsers(prev => [...prev, newUser]);
+    toast.success(`User "${newUser.name}" added successfully`);
   };
 
   const calculateBalances = () => {
@@ -211,6 +291,42 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return userBalances;
   };
 
+  // Mark an expense as paid for a specific user
+  const markExpenseAsPaid = (expenseId: string, userId: string) => {
+    setExpenses(prev => prev.map(expense => {
+      if (expense.id === expenseId) {
+        return {
+          ...expense,
+          splits: expense.splits.map(split => 
+            split.userId === userId ? { ...split, isPaid: true } : split
+          )
+        };
+      }
+      return expense;
+    }));
+    toast.success("Payment marked as completed");
+  };
+
+  // Create a direct settlement between users
+  const settleUp = (fromUserId: string, toUserId: string, amount: number) => {
+    const settlementExpense = {
+      id: `e${Date.now().toString()}`,
+      title: "Settlement Payment",
+      amount: amount,
+      date: new Date(),
+      paidBy: fromUserId,
+      category: "Settlement",
+      groupId: currentGroup?.id || "",
+      splits: [
+        { userId: fromUserId, amount: amount, isPaid: true },
+        { userId: toUserId, amount: 0, isPaid: true },
+      ]
+    };
+    
+    setExpenses(prev => [...prev, settlementExpense]);
+    toast.success(`Settlement of $${amount.toFixed(2)} completed`);
+  };
+
   const value = {
     expenses,
     groups,
@@ -222,7 +338,11 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addExpense,
     deleteExpense,
     addGroup,
+    addUser,
     calculateBalances,
+    markExpenseAsPaid,
+    settleUp,
+    loading
   };
 
   return <ExpenseContext.Provider value={value}>{children}</ExpenseContext.Provider>;

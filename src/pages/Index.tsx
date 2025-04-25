@@ -6,8 +6,10 @@ import ExpenseForm from "@/components/ExpenseForm";
 import Balances from "@/components/Balances";
 import { ExpenseProvider } from "@/context/ExpenseContext";
 import GroupSelector from "@/components/GroupSelector";
-import { Users } from "lucide-react";
+import { Users, Camera } from "lucide-react";
 import GroupMemberList from "@/components/GroupMemberList";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   return (
@@ -21,9 +23,16 @@ const Index = () => {
               </h1>
               <p className="text-muted-foreground">Track, split, and settle up with ease</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-muted-foreground" />
-              <GroupSelector />
+            <div className="flex items-center gap-4">
+              <Link to="/scan-receipt">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <Camera className="w-4 h-4" /> Scan Receipt
+                </Button>
+              </Link>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-muted-foreground" />
+                <GroupSelector />
+              </div>
             </div>
           </header>
           

@@ -3,10 +3,11 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useExpenseContext } from "@/context/ExpenseContext";
 import RecentTransactions from "@/components/RecentTransactions";
-import { DollarSign, CreditCard, Users, ArrowDown, ArrowUp } from "lucide-react";
+import { Link } from "react-router-dom";
+import { DollarSign, CreditCard, Users, ArrowDown, ArrowUp, Camera, Calendar } from "lucide-react";
 
 const Dashboard: React.FC = () => {
-  const { expenses, balances, currentUser, currentGroup } = useExpenseContext();
+  const { expenses, balances, currentUser, currentGroup, loading } = useExpenseContext();
 
   const totalOwed = Object.entries(balances).reduce((acc, [userId, amount]) => {
     if (userId === currentUser?.id && amount < 0) {
@@ -26,10 +27,22 @@ const Dashboard: React.FC = () => {
     .filter(expense => expense.groupId === currentGroup?.id)
     .reduce((acc, expense) => acc + expense.amount, 0);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse flex flex-col items-center gap-2">
+          <div className="h-12 w-12 rounded-full bg-muted"></div>
+          <div className="h-4 w-48 bg-muted rounded"></div>
+          <div className="h-3 w-32 bg-muted rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gradient-to-br from-expense-purple-light to-expense-purple">
+        <Card className="bg-gradient-to-br from-expense-purple-light to-expense-purple-dark">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium text-white">Total Balance</CardTitle>
             <CardDescription className="text-white/70">Your current balance</CardDescription>
@@ -81,14 +94,30 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-2">
-              <button className="flex flex-col items-center justify-center p-4 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
+              <Link to="/add-expense" className="flex flex-col items-center justify-center p-4 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
                 <CreditCard className="w-6 h-6 mb-2" />
                 <span>Add Expense</span>
-              </button>
-              <button className="flex flex-col items-center justify-center p-4 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
-                <Users className="w-6 h-6 mb-2" />
-                <span>Manage Group</span>
-              </button>
+              </Link>
+              <Link to="/scan-receipt" className="flex flex-col items-center justify-center p-4 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors">
+                <Camera className="w-6 h-6 mb-2" />
+                <span>Scan Receipt</span>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Monthly Summary</CardTitle>
+            <CardDescription>
+              Your expense breakdown for {new Date().toLocaleString('default', { month: 'long' })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12 text-muted-foreground">
+              <Calendar className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p>Monthly summaries will appear here</p>
+              <p className="text-sm">Track your expenses regularly to see insights</p>
             </div>
           </CardContent>
         </Card>

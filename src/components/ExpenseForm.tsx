@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,22 +13,46 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const categories = [
   "Food", "Rent", "Utilities", "Transportation", "Entertainment", "Travel", "Shopping", "Other"
 ];
 
-const ExpenseForm: React.FC = () => {
+type ExpenseFormProps = {
+  initialData?: {
+    title?: string;
+    amount?: number;
+    date?: Date;
+    category?: string;
+    paidBy?: string;
+    groupId?: string;
+  }
+};
+
+const ExpenseForm: React.FC<ExpenseFormProps> = ({ initialData }) => {
   const { users, currentUser, currentGroup, addExpense } = useExpenseContext();
   
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState<Date>(new Date());
-  const [category, setCategory] = useState("Food");
-  const [paidBy, setPaidBy] = useState(currentUser?.id || "");
+  const [title, setTitle] = useState(initialData?.title || "");
+  const [amount, setAmount] = useState(initialData?.amount ? initialData.amount.toString() : "");
+  const [date, setDate] = useState<Date>(initialData?.date || new Date());
+  const [category, setCategory] = useState(initialData?.category || "Food");
+  const [paidBy, setPaidBy] = useState(initialData?.paidBy || currentUser?.id || "");
   const [splitMethod, setSplitMethod] = useState("equal");
   const [customSplits, setCustomSplits] = useState<Record<string, number>>({});
   const [percentageSplits, setPercentageSplits] = useState<Record<string, number>>({});
+
+  // Set initial data when component mounts or initialData changes
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.title) setTitle(initialData.title);
+      if (initialData.amount) setAmount(initialData.amount.toString());
+      if (initialData.date) setDate(initialData.date);
+      if (initialData.category) setCategory(initialData.category);
+      if (initialData.paidBy) setPaidBy(initialData.paidBy);
+      else setPaidBy(currentUser?.id || "");
+    }
+  }, [initialData, currentUser]);
 
   const resetForm = () => {
     setTitle("");
