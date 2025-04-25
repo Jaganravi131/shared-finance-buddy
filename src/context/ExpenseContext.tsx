@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { CurrencyCode } from "@/utils/currencyConverter";
@@ -319,7 +318,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       preferences: {
         notificationsEnabled: true,
         paymentReminders: true,
-        theme: 'system'
+        theme: 'system' as const
       }
     };
     setUsers(prev => [...prev, newUser]);
